@@ -7,6 +7,7 @@ public class Push : MonoBehaviour
 {
     [SerializeField] private float maximumForce;
     [SerializeField] private float maximumForceTime;
+    [SerializeField] private float pushHeight = 20;
     
     private float _mouseButtonDownTimer;
     private Camera _camera;
@@ -39,7 +40,7 @@ public class Push : MonoBehaviour
                     
                     Vector3 forceDirection = stickman.transform.position - _camera.transform.position;
 
-                    forceDirection.y = 2;
+                    forceDirection.y = pushHeight;
                     forceDirection.Normalize();
                     
                     Vector3 force = forceMagnitude * forceDirection;

@@ -7,11 +7,9 @@ using Random = UnityEngine.Random;
 
 public class Stickman : MonoBehaviour
 {
-    [SerializeField] private Transform butt;
-    [SerializeField] private LayerMask groundLayer;
-    
-    [SerializeField] private string standUpFromBackAnimationName;
-    [SerializeField] private string standUpFromBellyAnimationName;
+    [SerializeField]  private Camera camera;
+    [SerializeField] private string faceUpStandUpAnimation;
+    [SerializeField] private string faceDowmStandUpAnimation;
     
     [SerializeField] private float timeToResetBones;
     
@@ -20,7 +18,8 @@ public class Stickman : MonoBehaviour
     private Rigidbody[] _ragdollRigidbodies;
     private Transform _hipsBone;
     
-    private BoneTransform[] _standUpBoneTransforms;
+    private BoneTransform[] _faceUpStandUpBoneTransforms;
+    private BoneTransform[] _faceDownStandUpBoneTransforms;
     private BoneTransform[] _ragdollBoneTransforms;
     private Transform[] _bones;
 
@@ -30,36 +29,35 @@ public class Stickman : MonoBehaviour
     private float _timeToStandUp;
     private float _elapsedResetBonesTime;
 
-    private bool _isButtOnTheGround;
+    private bool _isFacingUp;
     
     private static readonly int IdleIndex = Animator.StringToHash("idleIndex");
 
     private void Awake()
-    {   
+    {
         _animator = GetComponent<Animator>();
         _characterController = GetComponent<CharacterController>();
-        
+
         _ragdollRigidbodies = GetComponentsInChildren<Rigidbody>();
         _randomIdleIndex = Random.Range(0, 4);
-        
+
         _hipsBone = _animator.GetBoneTransform(HumanBodyBones.Hips);
-        _bones  = _hipsBone.GetComponentsInChildren<Transform>();
-        _standUpBoneTransforms = new BoneTransform[_bones.Length];
+        _bones = _hipsBone.GetComponentsInChildren<Transform>();
+        _faceDownStandUpBoneTransforms = new BoneTransform[_bones.Length];
+        _faceUpStandUpBoneTransforms = new BoneTransform[_bones.Length];
         _ragdollBoneTransforms = new BoneTransform[_bones.Length];
-        
-        for(int boneIndex = 0; boneIndex < _bones.Length; boneIndex++)
+
+        for (int boneIndex = 0; boneIndex < _bones.Length; boneIndex++)
         {
-            _standUpBoneTransforms[boneIndex] = new BoneTransform();
+            _faceDownStandUpBoneTransforms[boneIndex] = new BoneTransform();
+            _faceUpStandUpBoneTransforms[boneIndex] = new BoneTransform();
             _ragdollBoneTransforms[boneIndex] = new BoneTransform();
         }
 
-        DisableRagdoll();
-    }
+        PopulateAnimationStartBoneTransforms(faceDowmStandUpAnimation, _faceDownStandUpBoneTransforms);
+        PopulateAnimationStartBoneTransforms(faceUpStandUpAnimation, _faceUpStandUpBoneTransforms);
 
-    private void FixedUpdate()
-    {
-        _isButtOnTheGround = CheckButtTouchesGround();
-        Debug.Log(_isButtOnTheGround);
+        DisableRagdoll();
     }
 
     private void Update()
@@ -81,10 +79,18 @@ public class Stickman : MonoBehaviour
                 break;
         }
     }
+
+    private string GetStandingUpAnimationName =>
+        _isFacingUp ? faceUpStandUpAnimation : faceDowmStandUpAnimation;
+    
+    private BoneTransform[] GetStandingUpBoneTransforms =>
+        _isFacingUp ? _faceUpStandUpBoneTransforms : _faceDownStandUpBoneTransforms;
+    
     
     public void TriggerRagdoll(Vector3 force, Vector3 hitInfo)
     {
         EnableRagdoll();
+        
         Rigidbody hitRigidbody = FindHitRigidbody(hitInfo);
         
         hitRigidbody.AddForceAtPosition(force, hitInfo,ForceMode.Impulse);
@@ -111,74 +117,13 @@ public class Stickman : MonoBehaviour
 
         return closestRigidbody;
     }
-    
-    private void IdleBehaviour()
-    {
-        PlayRandomIdleAnimation();
-    }
-
-    private void RagdollBehaviour()
-    {
-        _animator.enabled = false;
-        _timeToStandUp -= Time.deltaTime;
-
-        if (_timeToStandUp <= 0)
-        {
-            Debug.Log("Butt on the ground "+_isButtOnTheGround);
-
-            AlignPositionToHips();
-            PopulateAnimationStartBoneTransforms(_isButtOnTheGround ? standUpFromBackAnimationName : standUpFromBellyAnimationName , _standUpBoneTransforms);
-            PopulateBoneTransforms(_ragdollBoneTransforms);
-
-            _currentState = StickmanState.ResetingBones;
-            _elapsedResetBonesTime = 0;
-        }
-    }
-
-    private void StandingUpBehaviour()
-    {
-        if (_animator.GetCurrentAnimatorStateInfo(0).IsName(standUpFromBellyAnimationName) == false && 
-            _animator.GetCurrentAnimatorStateInfo(0).IsName(standUpFromBackAnimationName) == false)
-        {
-            _currentState = StickmanState.Idle;
-        }
-    }
-    private void ResettingBonesBehaviour()
-    {
-       
-        
-        _elapsedResetBonesTime += Time.deltaTime;
-        float elapsedPercentage = _elapsedResetBonesTime / timeToResetBones;
-
-        for (int boneIndex = 0; boneIndex < _bones.Length; boneIndex ++)
-        {
-            _bones[boneIndex].localPosition = Vector3.Lerp(
-                _ragdollBoneTransforms[boneIndex].Position,
-                _standUpBoneTransforms[boneIndex].Position,
-                elapsedPercentage);
-
-            _bones[boneIndex].localRotation = Quaternion.Lerp(
-                _ragdollBoneTransforms[boneIndex].Rotation,
-                _standUpBoneTransforms[boneIndex].Rotation,
-                elapsedPercentage);
-        }
-
-        if (elapsedPercentage >= 1)
-        {
-            _currentState = StickmanState.StandingUp;
-            DisableRagdoll();
-           
-            _animator.Play(_isButtOnTheGround ? standUpFromBackAnimationName : standUpFromBellyAnimationName);
-        }
-    }
-    
-
     private void DisableRagdoll()
     {
         foreach (var rigidbody in _ragdollRigidbodies)
         {
             rigidbody.isKinematic = true;
         }
+
         _animator.enabled = true;
         _characterController.enabled = true;
     }
@@ -189,42 +134,117 @@ public class Stickman : MonoBehaviour
         {
             rigidbody.isKinematic = false;
         }
+
         _animator.enabled = false;
         _characterController.enabled = false;
     }
+    
+    
+    private void IdleBehaviour()
+    {
+        PlayRandomIdleAnimation();
+    }
 
+    private void RagdollBehaviour()
+    {
+        _timeToStandUp -= Time.deltaTime;
+
+        if (_timeToStandUp <= 0)
+        {
+            _isFacingUp = _hipsBone.forward.y > 0;
+
+            AlignRotationToHips();
+            AlignPositionToHips();
+            
+            PopulateBoneTransforms(_ragdollBoneTransforms);
+
+            _currentState = StickmanState.ResetingBones;
+            _elapsedResetBonesTime = 0;
+        }
+    }
+
+    private void StandingUpBehaviour()
+    {
+        if (_animator.GetCurrentAnimatorStateInfo(0).IsName(GetStandingUpAnimationName) == false)
+        {
+            _currentState = StickmanState.Idle;
+        }
+    }
+    
+    private void ResettingBonesBehaviour()
+    {
+        _elapsedResetBonesTime += Time.deltaTime;
+        float elapsedPercentage = _elapsedResetBonesTime / timeToResetBones;
+        
+        BoneTransform[] standingUpBoneTransforms = GetStandingUpBoneTransforms;
+
+        for (int boneIndex = 0; boneIndex < _bones.Length; boneIndex ++)
+        {
+            _bones[boneIndex].localPosition = Vector3.Lerp(
+                _ragdollBoneTransforms[boneIndex].Position,
+                standingUpBoneTransforms[boneIndex].Position,
+                elapsedPercentage);
+
+            _bones[boneIndex].localRotation = Quaternion.Lerp(
+                _ragdollBoneTransforms[boneIndex].Rotation,
+                standingUpBoneTransforms[boneIndex].Rotation,
+                elapsedPercentage);
+        }
+
+        if (elapsedPercentage >= 1)
+        {
+            _currentState = StickmanState.StandingUp;
+            DisableRagdoll();
+           
+            _animator.Play(GetStandingUpAnimationName, 0 , 0);
+        }
+    }
+    
     private void PlayRandomIdleAnimation()
     {
         _animator.SetFloat(IdleIndex, _randomIdleIndex);
     }
 
-    private void AlignPositionToHips()
+
+    private void AlignRotationToHips()
     {
         Vector3 originalHipsPosition = _hipsBone.position;
-        transform.position = _hipsBone.position;
-        
-        bool onGround = Physics.Raycast(transform.position, Vector3.down, out RaycastHit hitInfo, 1f);
+        Quaternion originalHipsRotation = _hipsBone.rotation;
 
-        if (onGround) transform.position = new Vector3(transform.position.x, hitInfo.point.y, transform.position.z);
+        Vector3 desiredDirection = _hipsBone.up;
+
+        if (_isFacingUp)
+        {
+            desiredDirection *= -1;
+        }
+
+        desiredDirection.y = 0;
+        desiredDirection.Normalize();
+
+        Quaternion fromToRotation = Quaternion.FromToRotation(transform.forward, desiredDirection);
+        transform.rotation *= fromToRotation;
+
+        _hipsBone.position = originalHipsPosition;
+        _hipsBone.rotation = originalHipsRotation;
+    }
+
+    private void AlignPositionToHips()
+    {
+        Vector3 originalHipsPosition = _hipsBone.position; 
+        transform.position = _hipsBone.position;
+
+        Vector3 positionOffset = GetStandingUpBoneTransforms[0].Position;
+        positionOffset.y = 0;
+        positionOffset = transform.rotation * positionOffset;
+        transform.position -= positionOffset;
+
+        if (Physics.Raycast(transform.position, Vector3.down, out RaycastHit hitInfo))
+        {
+            transform.position = new Vector3(transform.position.x, hitInfo.point.y, transform.position.z);
+        }
         
         _hipsBone.position = originalHipsPosition;
     }
-    
-        private void AlignRotationToHips()
-        {
-            Vector3 originalHipsPosition = _hipsBone.position;
-            Quaternion originalHipsRotation = _hipsBone.rotation;
-    
-            Vector3 desiredDirection = _hipsBone.up * -1;
-            desiredDirection.y = 0;
-            desiredDirection.Normalize();
-    
-            Quaternion fromToRotation = Quaternion.FromToRotation(transform.forward, desiredDirection);
-            transform.rotation *= fromToRotation;
-    
-            _hipsBone.position = originalHipsPosition;
-            _hipsBone.rotation = originalHipsRotation;
-        }
 
     private void PopulateBoneTransforms(BoneTransform[] boneTransform)
     {
@@ -238,14 +258,14 @@ public class Stickman : MonoBehaviour
     private void PopulateAnimationStartBoneTransforms(string animationName, BoneTransform[] boneTransforms)
     {
         Vector3 positionBeforeSampling = transform.position;
-            Quaternion rotationBeforeSampling = transform.rotation;
+        Quaternion rotationBeforeSampling = transform.rotation;
 
             foreach (AnimationClip clip in _animator.runtimeAnimatorController.animationClips)
             {
                 if (clip.name == animationName)
                 {
                     clip.SampleAnimation(gameObject, 0);
-                    PopulateBoneTransforms(_standUpBoneTransforms);
+                    PopulateBoneTransforms(boneTransforms);
                     break;
                 }
             }
@@ -253,15 +273,5 @@ public class Stickman : MonoBehaviour
             transform.position = positionBeforeSampling;
             transform.rotation = rotationBeforeSampling;
         
-    }
-
-    private bool CheckButtTouchesGround()
-    {
-        return Physics.CheckSphere(butt.position, 1f, groundLayer);
-    }
-
-    private void OnDrawGizmos()
-    {
-        Gizmos.DrawWireSphere(butt.position, 1f);
     }
 }
