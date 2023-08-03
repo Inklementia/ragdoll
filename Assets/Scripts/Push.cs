@@ -22,7 +22,6 @@ public class Push : MonoBehaviour
         if(Input.GetMouseButtonDown(0))
         {
             _mouseButtonDownTimer = Time.time;
-            
         }
 
         if (Input.GetMouseButtonUp(0))

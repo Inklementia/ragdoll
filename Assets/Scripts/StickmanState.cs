@@ -3,4 +3,6 @@
     {
         Idle,
         Ragdoll,
+        StandingUp,
+        ResetingBones,
     }
