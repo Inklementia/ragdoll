@@ -3,19 +3,25 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Infrastructure;
+using Services;
+using Infrastructure.States;
 
 public class SceneSwitcher : MonoBehaviour
 {
-    private void Update()
+    
+    private IGameStateMachine _stateMachine;
+
+    private void Awake()
     {
-        if (Input.GetKeyDown("space"))
-        {
-            RestartScene();
-        }
+        _stateMachine = AllServices.Container.Single<IGameStateMachine>();
     }
 
-    private void RestartScene()
+    public void RestartScene()
     {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        
+        Destroy( GameObject.FindObjectOfType<GameBootstrapper>());
+        SceneManager.LoadScene("Initial");
     }
+
 }

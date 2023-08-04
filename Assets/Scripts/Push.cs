@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
+using Infrastructure;
 using UnityEngine;
+using Services;
+using Services.Input;
 
 public class Push : MonoBehaviour
 {
@@ -10,6 +12,8 @@ public class Push : MonoBehaviour
     [SerializeField] private float pushHeight = 20;
     [SerializeField] private GameObject particlesGO;
     
+    private IInputService _inputService;
+    
     private float _mouseButtonDownTimer;
     private Camera _camera;
 
@@ -17,16 +21,17 @@ public class Push : MonoBehaviour
     private void Awake()
     {
         _camera = Camera.main;
+        _inputService = AllServices.Container.Single<IInputService>();
     }
 
     private void Update()
     {
-        if(Input.GetMouseButtonDown(0))
+        if(_inputService.IsMouseButtonDown())
         {
             _mouseButtonDownTimer = Time.time;
         }
 
-        if (Input.GetMouseButtonUp(0))
+        if (_inputService.IsMouseButtonUp())
         {
             Ray ray = _camera.ScreenPointToRay(Input.mousePosition);
 
