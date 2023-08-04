@@ -7,7 +7,6 @@ using Random = UnityEngine.Random;
 
 public class Stickman : MonoBehaviour
 {
-    [SerializeField]  private Camera camera;
     [SerializeField] private string faceUpStandUpAnimation;
     [SerializeField] private string faceDowmStandUpAnimation;
     

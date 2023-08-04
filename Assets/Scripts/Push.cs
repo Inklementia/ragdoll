@@ -8,6 +8,7 @@ public class Push : MonoBehaviour
     [SerializeField] private float maximumForce;
     [SerializeField] private float maximumForceTime;
     [SerializeField] private float pushHeight = 20;
+    [SerializeField] private GameObject particlesGO;
     
     private float _mouseButtonDownTimer;
     private Camera _camera;
@@ -32,6 +33,7 @@ public class Push : MonoBehaviour
             if (Physics.Raycast(ray, out RaycastHit hitInfo))
             {
                 Stickman stickman = hitInfo.collider.GetComponent<Stickman>();
+                Instantiate(particlesGO, hitInfo.point, Quaternion.identity);
                 if (stickman != null)
                 {
                     float mouseButtonDownDuration = Time.time - _mouseButtonDownTimer;
